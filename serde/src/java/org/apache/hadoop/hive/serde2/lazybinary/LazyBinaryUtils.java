@@ -147,7 +147,7 @@ public final class LazyBinaryUtils {
    *          modify this byteinfo object and return it
    */
   public static void checkObjectByteInfo(ObjectInspector objectInspector,
-      byte[] bytes, int offset, RecordInfo recordInfo) {
+      byte[] bytes, int offset, RecordInfo recordInfo, VInt vInt) {
     Category category = objectInspector.getCategory();
     switch (category) {
     case PRIMITIVE:
