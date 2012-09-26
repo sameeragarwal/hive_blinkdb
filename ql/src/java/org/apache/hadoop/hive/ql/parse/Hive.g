@@ -263,6 +263,7 @@ TOK_TABLESKEWED;
 TOK_TABCOLVALUE;
 TOK_TABCOLVALUE_PAIR;
 TOK_TABCOLVALUES;
+TOK_SAMPLE_WITH;
 }
 
 
@@ -1426,9 +1427,10 @@ regular_body
    clusterByClause?
    distributeByClause?
    sortByClause?
+   sampleWithClause?
    limitClause? -> ^(TOK_QUERY fromClause ^(TOK_INSERT insertClause
                      selectClause whereClause? groupByClause? havingClause? orderByClause? clusterByClause?
-                     distributeByClause? sortByClause? limitClause?))
+                     distributeByClause? sortByClause? sampleWithClause? limitClause?))
    |
    selectStatement
    ;
@@ -1444,9 +1446,10 @@ selectStatement
    clusterByClause?
    distributeByClause?
    sortByClause?
+   sampleWithClause?
    limitClause? -> ^(TOK_QUERY fromClause ^(TOK_INSERT ^(TOK_DESTINATION ^(TOK_DIR TOK_TMP_FILE))
                      selectClause whereClause? groupByClause? havingClause? orderByClause? clusterByClause?
-                     distributeByClause? sortByClause? limitClause?))
+                     distributeByClause? sortByClause? sampleWithClause? limitClause?))
    ;
 
 
@@ -1461,9 +1464,10 @@ body
    clusterByClause?
    distributeByClause?
    sortByClause?
+   sampleWithClause?
    limitClause? -> ^(TOK_INSERT insertClause?
                      selectClause whereClause? groupByClause? havingClause? orderByClause? clusterByClause?
-                     distributeByClause? sortByClause? limitClause?)
+                     distributeByClause? sortByClause? sampleWithClause? limitClause?)
    |
    selectClause
    whereClause?
@@ -1473,9 +1477,10 @@ body
    clusterByClause?
    distributeByClause?
    sortByClause?
+   sampleWithClause?
    limitClause? -> ^(TOK_INSERT ^(TOK_DESTINATION ^(TOK_DIR TOK_TMP_FILE))
                      selectClause whereClause? groupByClause? havingClause? orderByClause? clusterByClause?
-                     distributeByClause? sortByClause? limitClause?)
+                     distributeByClause? sortByClause? sampleWithClause? limitClause?)
    ;
 
 insertClause
@@ -1502,6 +1507,13 @@ limitClause
    :
    KW_LIMIT num=Number -> ^(TOK_LIMIT $num)
    ;
+
+sampleWithClause
+@init { msgs.push("sample with clause");}
+@after {msgs.pop(); }
+	:
+	KW_SAMPLE_WITH num=Number -> ^(TOK_SAMPLE_WITH $num)
+	;
 
 //----------------------- Rules for parsing selectClause -----------------------------
 // select a,b,c ...
@@ -2417,6 +2429,7 @@ KW_UPDATE: 'UPDATE';
 KW_RESTRICT: 'RESTRICT';
 KW_CASCADE: 'CASCADE';
 KW_SKEWED: 'SKEWED';
+KW_SAMPLE_WITH: 'SAMPLEWITH';
 
 
 // Operators

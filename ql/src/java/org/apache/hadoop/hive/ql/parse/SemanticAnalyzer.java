@@ -147,6 +147,7 @@ import org.apache.hadoop.hive.ql.plan.MoveWork;
 import org.apache.hadoop.hive.ql.plan.OperatorDesc;
 import org.apache.hadoop.hive.ql.plan.PlanUtils;
 import org.apache.hadoop.hive.ql.plan.ReduceSinkDesc;
+import org.apache.hadoop.hive.ql.plan.SampleDesc;
 import org.apache.hadoop.hive.ql.plan.ScriptDesc;
 import org.apache.hadoop.hive.ql.plan.SelectDesc;
 import org.apache.hadoop.hive.ql.plan.TableDesc;
@@ -696,6 +697,14 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
       case HiveParser.TOK_WHERE:
         qbp.setWhrExprForClause(ctx_1.dest, ast);
+        break;
+
+        // (sameerag): Binomial I.I.D. Sampling
+      case HiveParser.TOK_SAMPLE_WITH:
+        //ASTNode errorBoundNode = (ASTNode) child.getChild(0);
+        double probability = Double.parseDouble(((ASTNode) ast.getChild(0)).getToken().getText());
+        console.printInfo("Sameer: Sample With Operator Invoked with probability = " + probability);
+        qbp.setSampleExprForClause(ctx_1.dest, ast);
         break;
 
       case HiveParser.TOK_INSERT_INTO:
@@ -1518,6 +1527,15 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
     return genFilterPlan(qb, (ASTNode) whereExpr.getChild(0), input);
   }
 
+  //@sameerag
+  @SuppressWarnings("nls")
+  private Operator genSamplePlan(String dest, QB qb, Operator input)
+      throws SemanticException {
+
+    ASTNode sampleExpr = qb.getParseInfo().getSampleForClause(dest);
+    return genSamplePlan(qb, (ASTNode) sampleExpr.getChild(0), input);
+  }
+
   /**
    * create a filter plan. The condition and the inputs are specified.
    *
@@ -1540,6 +1558,40 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
     if (LOG.isDebugEnabled()) {
       LOG.debug("Created Filter Plan for " + qb.getId() + " row schema: "
+                + inputRR.toString());
+    }
+    return output;
+  }
+
+  /** @sameerag
+   * TODO(sameerag): Modify FilterDesc/genExprNodeDesc
+   * create a sample plan. The condition and the inputs are specified.
+   *
+   * @param qb
+   *          current query block
+   * @param condn
+   *          The condition to be resolved
+   * @param input
+   *          the input operator
+   */
+  @SuppressWarnings("nls")
+  private Operator genSamplePlan(QB qb, ASTNode condn, Operator input)
+      throws SemanticException {
+
+    OpParseContext inputCtx = opParseCtx.get(input);
+    RowResolver inputRR = inputCtx.getRowResolver();
+    /*
+    Operator output = putOpInsertMap(OperatorFactory.getAndMakeChild(
+        new SampleDesc(genExprNodeDesc(Double.parseDouble(condn.token.getText()), inputRR), false), new RowSchema(
+        inputRR.getColumnInfos()), input), inputRR);
+  */
+
+    Operator output = putOpInsertMap(OperatorFactory.getAndMakeChild(
+        new SampleDesc(Double.parseDouble(condn.token.getText()), false), new RowSchema(
+        inputRR.getColumnInfos()), input), inputRR);
+
+    if (LOG.isDebugEnabled()) {
+      LOG.debug("Created Sample Plan for " + qb.getId() + " row schema: "
                 + inputRR.toString());
     }
     return output;
@@ -6115,6 +6167,11 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
 
               if (qbp.getWhrForClause(dest) != null) {
                 curr = genFilterPlan(dest, qb, curr);
+              }
+
+              //@sameerag: Just adding here for now. Doesn't support joins
+              if (qbp.getSampleForClause(dest) != null) {
+                  curr = genSamplePlan(dest, qb, curr);
               }
 
               if (qbp.getAggregationExprsForClause(dest).size() != 0
