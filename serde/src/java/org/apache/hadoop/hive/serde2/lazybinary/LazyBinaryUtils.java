@@ -353,9 +353,10 @@ public final class LazyBinaryUtils {
     return 1 + len;
   }
 
-  private static byte[] vLongBytes = new byte[9];
+  //private static byte[] vLongBytes = new byte[9];
 
   public static void writeVLong(Output byteStream, long l) {
+    byte[] vLongBytes = new byte[9];
     int len = LazyBinaryUtils.writeVLongToByteArray(vLongBytes, l);
     byteStream.write(vLongBytes, 0, len);
   }
