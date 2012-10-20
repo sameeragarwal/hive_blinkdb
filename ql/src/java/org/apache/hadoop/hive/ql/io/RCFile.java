@@ -1018,6 +1018,7 @@ public class RCFile {
         int compressedKeyLen = compressionBuffer.getLength();
         out.writeInt(compressedKeyLen);
         out.write(compressionBuffer.getData(), 0, compressedKeyLen);
+        CodecPool.returnCompressor(compressor);
       } else {
         out.writeInt(keyLength);
         keyBuffer.write(out);
