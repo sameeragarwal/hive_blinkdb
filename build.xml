@@ -1174,6 +1174,19 @@
           </artifact:install>
         </then>
       </elseif>
+      <elseif>
+        <isset property="mvn.publish.repoUrl"/>
+        <then>
+          <echo message="Deploying to ${mvn.publish.repo}, ${mvn.publish.repoUrl}"/>
+          <artifact:mvn>
+            <arg value="org.apache.maven.plugins:maven-deploy-plugin:2.6:deploy-file" />
+            <arg value="-Durl=${mvn.publish.repoUrl}" />
+            <arg value="-DrepositoryId=${mvn.publish.repo}" />
+            <arg value="-DpomFile=${mvn.pom.dir}/hive-${hive.project}-${version}.pom" />
+            <arg value="-Dfile=${mvn.jar.dir}/hive-${hive.project}-${version}.jar" />
+          </artifact:mvn>
+        </then>
+      </elseif>
       <else>
         <artifact:deploy
             file="${mvn.jar.dir}/hive-${hive.project}-${version}.jar">
