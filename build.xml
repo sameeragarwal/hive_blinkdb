@@ -61,7 +61,7 @@
   <property name="deb.control.dir" location="${hive.root}/deb"/>
   <property name="deb.build.dir" location="${hive.root}/build"/>
   <property name="deb.control.build.dir" location="${deb.build.dir}/deb"/>
-  <property name="deb.prefix" value="/usr/share/${final.name}"/>
+  <property name="deb.prefix" value="/usr/share/hive"/>
 
   <!-- Ignore Postgres upgrade scripts unless 'include.postgres' is true -->
   <condition property="metastore.excludes"
