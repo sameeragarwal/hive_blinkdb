@@ -849,7 +849,7 @@
     <taskdef name="deb" classname="org.vafer.jdeb.ant.DebAntTask">
       <classpath refid="deb-classpath"/>
     </taskdef>
-    <deb destfile="${deb.build.dir}/${bin.final.name}.deb"
+    <deb destfile="${deb.build.dir}/${name}-bin_${version}_all.deb"
         control="${deb.control.build.dir}">
       <data src="${build.dir.hive}/${bin.final.name}.tar.gz" type="archive">
         <mapper type="perm" strip="1" prefix="${deb.prefix}"/>
