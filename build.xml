@@ -320,12 +320,27 @@
     <iterate-test target="compile-test"/>
   </target>
 
-  <target name="hive-exec-test-jar" depends="jar"
+  <target name="hive-exec-test-jar" depends="jar,mvn-taskdef"
           description="Build Java test artifacts for QL">
     <echo message="Project: ${ant.project.name}"/>
     <iterate-test-subset filelist="ql/build.xml" target="gen-test"/>
     <iterate-test-subset filelist="ql/build.xml" target="compile-test"/>
     <iterate-test-subset filelist="ql/build.xml" target="test-jar"/>
+    <if>
+      <isset property="mvn.publish.repoUrl" />
+      <then>
+        <artifact:mvn>
+          <arg value="org.apache.maven.plugins:maven-deploy-plugin:2.6:deploy-file" />
+          <arg value="-Durl=${mvn.publish.repoUrl}" />
+          <arg value="-DrepositoryId=${mvn.publish.repo}" />
+          <arg value="-Dfile=${build.dir.hive}/ql/hive-exec-test-${version}.jar" />
+          <arg value="-DpomFile=${build.dir.hive}/ql/hive-exec-test-${version}.pom" />
+          <arg value="-DgroupId=org.apache.hive" />
+          <arg value="-DartifactId=hive-exec-test" />
+          <arg value="-Dpackaging=jar" />
+        </artifact:mvn>
+      </then>
+    </if>
   </target>
 
   <target name="test" depends="clean-test,jar-test" description="Run tests">

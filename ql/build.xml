@@ -258,22 +258,6 @@
        <arg value="-Dversion=${version}" />
        <arg value="-Dpackaging=jar" />
      </exec>
-     <if>
-       <isset property="mvn.publish.repoUrl" />
-       <then>
-         <exec executable="mvn">
-           <arg value="deploy:deploy-file" />
-           <arg value="-Durl=${mvn.publish.repoUrl}" />
-           <arg value="-Drepository=${mvn.publish.repo}" />
-           <arg value="-Dfile=${build.dir}/hive-exec-test-${version}.jar" />
-           <arg value="-DpomFile=${build.dir}/hive-exec-test-${version}.pom" />
-           <arg value="-DgroupId=org.apache.hive" />
-           <arg value="-DartifactId=hive-exec-test" />
-           <arg value="-Dversion=${version}" />
-           <arg value="-Dpackaging=jar" />
-         </exec>
-       </then>
-     </if>
   </target>
 
   <!-- Override deploy since we are deploying hive_exec and not hive_ql -->
