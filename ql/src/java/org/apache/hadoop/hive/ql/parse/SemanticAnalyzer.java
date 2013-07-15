@@ -198,7 +198,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
   private HashMap<TableScanOperator, sampleDesc> opToSamplePruner;
   private final Map<TableScanOperator, ExprNodeDesc> opToSkewedPruner;
   /**
-   * a map for the split sampling, from ailias to an instance of SplitSample
+   * a map for the split sampling, from alias to an instance of SplitSample
    * that describes percentage and number.
    */
   private final HashMap<String, SplitSample> nameToSplitSample;

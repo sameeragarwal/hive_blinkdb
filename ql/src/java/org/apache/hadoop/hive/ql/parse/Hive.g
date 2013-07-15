@@ -264,6 +264,7 @@ TOK_TABCOLVALUE;
 TOK_TABCOLVALUE_PAIR;
 TOK_TABCOLVALUES;
 TOK_SAMPLE_WITH;
+TOK_SAMPLE_WITH_REPLACEMENT;
 }
 
 
@@ -1428,9 +1429,10 @@ regular_body
    distributeByClause?
    sortByClause?
    sampleWithClause?
+   sampleWithReplacementClause?   
    limitClause? -> ^(TOK_QUERY fromClause ^(TOK_INSERT insertClause
                      selectClause whereClause? groupByClause? havingClause? orderByClause? clusterByClause?
-                     distributeByClause? sortByClause? sampleWithClause? limitClause?))
+                     distributeByClause? sortByClause? sampleWithClause? sampleWithReplacementClause? limitClause?))
    |
    selectStatement
    ;
@@ -1447,9 +1449,10 @@ selectStatement
    distributeByClause?
    sortByClause?
    sampleWithClause?
+   sampleWithReplacementClause?
    limitClause? -> ^(TOK_QUERY fromClause ^(TOK_INSERT ^(TOK_DESTINATION ^(TOK_DIR TOK_TMP_FILE))
                      selectClause whereClause? groupByClause? havingClause? orderByClause? clusterByClause?
-                     distributeByClause? sortByClause? sampleWithClause? limitClause?))
+                     distributeByClause? sortByClause? sampleWithClause? sampleWithReplacementClause? limitClause?))
    ;
 
 
@@ -1465,9 +1468,10 @@ body
    distributeByClause?
    sortByClause?
    sampleWithClause?
+   sampleWithReplacementClause?
    limitClause? -> ^(TOK_INSERT insertClause?
                      selectClause whereClause? groupByClause? havingClause? orderByClause? clusterByClause?
-                     distributeByClause? sortByClause? sampleWithClause? limitClause?)
+                     distributeByClause? sortByClause? sampleWithClause? sampleWithReplacementClause? limitClause?)
    |
    selectClause
    whereClause?
@@ -1478,9 +1482,10 @@ body
    distributeByClause?
    sortByClause?
    sampleWithClause?
+   sampleWithReplacementClause?
    limitClause? -> ^(TOK_INSERT ^(TOK_DESTINATION ^(TOK_DIR TOK_TMP_FILE))
                      selectClause whereClause? groupByClause? havingClause? orderByClause? clusterByClause?
-                     distributeByClause? sortByClause? sampleWithClause? limitClause?)
+                     distributeByClause? sortByClause? sampleWithClause? sampleWithReplacementClause? limitClause?)
    ;
 
 insertClause
@@ -1514,6 +1519,13 @@ sampleWithClause
 	:
 	KW_SAMPLE_WITH num=Number -> ^(TOK_SAMPLE_WITH $num)
 	;
+	
+sampleWithReplacementClause
+@init { msgs.push("sample with replacement clause");}
+@after {msgs.pop(); }
+	:
+	KW_SAMPLE_WITH_REPLACEMENT num=Number -> ^(TOK_SAMPLE_WITH_REPLACEMENT $num)
+	;	
 
 //----------------------- Rules for parsing selectClause -----------------------------
 // select a,b,c ...
@@ -2430,7 +2442,7 @@ KW_RESTRICT: 'RESTRICT';
 KW_CASCADE: 'CASCADE';
 KW_SKEWED: 'SKEWED';
 KW_SAMPLE_WITH: 'SAMPLEWITH';
-
+KW_SAMPLE_WITH_REPLACEMENT: 'SAMPLEWITHREPLACEMENT';
 
 // Operators
 // NOTE: if you add a new function/operator, add it to sysFuncNames so that describe function _FUNC_ will work.

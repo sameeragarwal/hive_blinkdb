@@ -77,7 +77,7 @@ public class QBParseInfo {
   private final HashMap<String, ASTNode> destToSortby;
 
   /**
-   * Maping from table/subquery aliases to all the associated lateral view nodes.
+   * Mapping from table/subquery aliases to all the associated lateral view nodes.
    */
   private final HashMap<String, ArrayList<ASTNode>> aliasToLateralViews;
 

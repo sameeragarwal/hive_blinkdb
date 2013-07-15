@@ -629,7 +629,18 @@ public class HiveConf extends Configuration {
      * This will be removed once the rest of the DML changes are committed.
      */
     HIVE_INTERNAL_DDL_LIST_BUCKETING_ENABLE("hive.internal.ddl.list.bucketing.enable", false),
+
+    //TODO(sameerag): Need to deprecate this for release 0.1
+    //@sameerag: QuicksilverDB configuration parameters
+    QUICKSILVER_SAMPLING_ENABLED("quicksilver.sample.enable", true),
+    SAMPLES_PER_TABLE("quicksilver.sample.num", 3),
+    SAMPLE_SIZE_LEVEL_1("quicksilver.sample.level.size.1", 2),
+    SAMPLE_SIZE_LEVEL_2("quicksilver.sample.level.size.2", 4),
+    SAMPLE_SIZE_LEVEL_3("quicksilver.sample.level.size.3", 8),
+    SAMPLE_SIZE_LEVEL_4("quicksilver.sample.level.size.4", 16),
+    SAMPLE_SIZE_LEVEL_5("quicksilver.sample.level.size.5", 32),
     ;
+
 
     public final String varname;
     public final String defaultVal;
@@ -942,6 +953,14 @@ public class HiveConf extends Configuration {
     // Overlay hive-site.xml if it exists
     if (hiveSiteURL != null) {
       addResource(hiveSiteURL);
+    }
+
+    //@sameerag: Adding BlinkDB config file
+    URL qsconfurl = getClassLoader().getResource("quicksilver-conf.xml");
+    if (qsconfurl == null) {
+      l4j.debug("quicksilver-conf.xml not found.");
+    } else {
+      addResource(qsconfurl);
     }
 
     // Overlay the values of any system properties whose names appear in the list of ConfVars
