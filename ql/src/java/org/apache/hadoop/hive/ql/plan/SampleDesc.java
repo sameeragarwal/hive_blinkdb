@@ -75,7 +75,6 @@ public class SampleDesc implements Serializable {
   }
   */
 
-
   @Explain(displayName = "isSamplingPred", normalExplain = false)
   public boolean getIsSamplingPred() {
     return isSamplingPred;
