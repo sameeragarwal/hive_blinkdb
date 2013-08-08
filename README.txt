@@ -1,5 +1,4 @@
 Apache Hive (TM) @VERSION@
-(Compatible with BlinkDB v0.1)
 ======================
 
 The Apache Hive (TM) data warehouse software facilitates querying and
