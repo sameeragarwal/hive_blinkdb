@@ -125,6 +125,7 @@ import org.apache.hadoop.hive.ql.udf.UDFUnixTimeStamp;
 import org.apache.hadoop.hive.ql.udf.UDFUpper;
 import org.apache.hadoop.hive.ql.udf.UDFWeekOfYear;
 import org.apache.hadoop.hive.ql.udf.UDFYear;
+import org.apache.hadoop.hive.ql.udf.approx.ApproxUDAFAverage;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFAverage;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFBridge;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCollectSet;
@@ -157,7 +158,6 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCase;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFCoalesce;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFConcatWS;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFSortArray;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFEWAHBitmapAnd;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFEWAHBitmapEmpty;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFEWAHBitmapOr;
@@ -167,8 +167,8 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFFromUtcTimestamp;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFHash;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFIf;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFIn;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFIndex;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFInFile;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFIndex;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFInstr;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFLocate;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFMap;
@@ -191,12 +191,13 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFPrintf;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFReflect;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFSentences;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFSize;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFSortArray;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFSplit;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStringToMap;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFStruct;
-import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToDate;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFTimestamp;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToBinary;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToDate;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToUtcTimestamp;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFUnion;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFWhen;
@@ -224,10 +225,8 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.io.IOUtils;
 import org.apache.hadoop.util.ReflectionUtils;
-
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
-import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
 /**
@@ -408,6 +407,8 @@ public final class FunctionRegistry {
     registerGenericUDAF("sum", new GenericUDAFSum());
     registerGenericUDAF("count", new GenericUDAFCount());
     registerGenericUDAF("avg", new GenericUDAFAverage());
+
+    registerGenericUDAF("approx_avg", new ApproxUDAFAverage());
 
     registerGenericUDAF("std", new GenericUDAFStd());
     registerGenericUDAF("stddev", new GenericUDAFStd());

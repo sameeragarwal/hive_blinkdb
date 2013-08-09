@@ -25,9 +25,9 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 /**
  * A Generic User-defined aggregation function (GenericUDAF) for the use with
  * Hive.
- * 
+ *
  * New GenericUDAF classes need to inherit from this GenericUDAF class.
- * 
+ *
  * The GenericUDAF are superior to normal UDAFs in the following ways: 1. It can
  * accept arguments of complex types, and return complex types. 2. It can accept
  * variable length of arguments. 3. It can accept an infinite number of function
@@ -64,7 +64,7 @@ public abstract class GenericUDAFEvaluator {
     COMPLETE
   };
 
-  Mode mode;
+  protected Mode mode;
 
   /**
    * The constructor.
@@ -74,7 +74,7 @@ public abstract class GenericUDAFEvaluator {
 
   /**
    * Initialize the evaluator.
-   * 
+   *
    * @param m
    *          The mode of aggregation.
    * @param parameters
@@ -86,7 +86,7 @@ public abstract class GenericUDAFEvaluator {
    *         mode, the ObjectInspector for the return value of
    *         terminatePartial() call; In FINAL and COMPLETE mode, the
    *         ObjectInspector for the return value of terminate() call.
-   * 
+   *
    *         NOTE: We need ObjectInspector[] (in addition to the TypeInfo[] in
    *         GenericUDAFResolver) for 2 reasons: 1. ObjectInspector contains
    *         more information than TypeInfo; and GenericUDAFEvaluator.init at
@@ -103,11 +103,11 @@ public abstract class GenericUDAFEvaluator {
   /**
    * The interface for a class that is used to store the aggregation result
    * during the process of aggregation.
-   * 
+   *
    * We split this piece of data out because there can be millions of instances
    * of this Aggregation in hash-based aggregation process, and it's very
    * important to conserve memory.
-   * 
+   *
    * In the future, we may completely hide this class inside the Evaluator and
    * use integer numbers to identify which aggregation we are looking at.
    */
@@ -128,7 +128,7 @@ public abstract class GenericUDAFEvaluator {
   /**
    * This function will be called by GroupByOperator when it sees a new input
    * row.
-   * 
+   *
    * @param agg
    *          The object to store the aggregation result.
    * @param parameters
@@ -146,7 +146,7 @@ public abstract class GenericUDAFEvaluator {
   /**
    * This function will be called by GroupByOperator when it sees a new input
    * row.
-   * 
+   *
    * @param agg
    *          The object to store the aggregation result.
    */
@@ -160,7 +160,7 @@ public abstract class GenericUDAFEvaluator {
 
   /**
    * Iterate through original data.
-   * 
+   *
    * @param parameters
    *          The objects of parameters.
    */
@@ -168,7 +168,7 @@ public abstract class GenericUDAFEvaluator {
 
   /**
    * Get partial aggregation result.
-   * 
+   *
    * @return partial aggregation result.
    */
   public abstract Object terminatePartial(AggregationBuffer agg) throws HiveException;
@@ -176,7 +176,7 @@ public abstract class GenericUDAFEvaluator {
   /**
    * Merge with partial aggregation result. NOTE: null might be passed in case
    * there is no input data.
-   * 
+   *
    * @param partial
    *          The partial aggregation result.
    */
@@ -184,7 +184,7 @@ public abstract class GenericUDAFEvaluator {
 
   /**
    * Get final aggregation result.
-   * 
+   *
    * @return final aggregation result.
    */
   public abstract Object terminate(AggregationBuffer agg) throws HiveException;
