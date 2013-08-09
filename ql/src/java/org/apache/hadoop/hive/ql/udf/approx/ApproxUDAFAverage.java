@@ -155,9 +155,9 @@ public class ApproxUDAFAverage extends AbstractGenericUDAFResolver {
 
      } else {
        ArrayList<String> fname = new ArrayList<String>();
-       fname.add("avg");
+       fname.add("approx_avg");
        fname.add("error");
-       fname.add("ci");
+       fname.add("confidence");
        ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);

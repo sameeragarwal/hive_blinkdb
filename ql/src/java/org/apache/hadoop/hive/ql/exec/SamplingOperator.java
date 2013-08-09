@@ -64,8 +64,6 @@ public class SamplingOperator extends Operator<SampleDesc> implements
     try {
       heartbeatInterval = HiveConf.getIntVar(hconf,
           HiveConf.ConfVars.HIVESENDHEARTBEAT);
-      //conditionEvaluator = ExprNodeEvaluatorFactory.get(conf.getPredicate());
-      //int p = ExprNodeEvaluatorFactory.get(conf.getProbability());
       probability = conf.getProbability();
       LOG.info("------------- " + probability + " ---------");
       statsMap.put(Counter.FILTERED, filtered_count);
@@ -80,16 +78,7 @@ public class SamplingOperator extends Operator<SampleDesc> implements
   @Override
   public void processOp(Object row, int tag) throws HiveException {
     ObjectInspector rowInspector = inputObjInspectors[tag];
-    /*
-    if (conditionInspector == null) {
-      conditionInspector = (PrimitiveObjectInspector) conditionEvaluator
-          .initialize(rowInspector);
-    }
-    Object condition = conditionEvaluator.evaluate(row);
-    Boolean ret = (Boolean) conditionInspector
-        .getPrimitiveJavaObject(condition);
-    if (Boolean.TRUE.equals(ret)) {
-    */
+
     if(Math.random() <= probability ) {
       forward(row, rowInspector);
       passed_count.set(passed_count.get() + 1);
