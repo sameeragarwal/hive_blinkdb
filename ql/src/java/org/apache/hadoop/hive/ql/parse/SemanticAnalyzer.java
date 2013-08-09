@@ -174,7 +174,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.shims.ShimLoader;
-import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.hadoop.mapred.InputFormat;
 
 /**
  * Implementation of the semantic analyzer.
