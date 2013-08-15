@@ -25,7 +25,7 @@ package org.apache.hadoop.hive.ql;
  * A structure to contain features of a query that are determined
  * during parsing and may be useful for categorizing a query type
  *
- * These inlucde whether the query contains:
+ * These include whether the query contains:
  * a join clause, a group by clause, an order by clause, a sort by
  * clause, a group by clause following a join clause, and whether
  * the query uses a script for mapping/reducing
