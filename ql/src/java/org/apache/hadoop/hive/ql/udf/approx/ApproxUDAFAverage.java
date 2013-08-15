@@ -266,9 +266,10 @@ public class ApproxUDAFAverage extends AbstractGenericUDAFResolver {
      if (myagg.count == 0) { // SQL standard - return null for zero elements
        return null;
      } else {
+       // NOTE: myagg.variance = sum[x-avg^2] (this is actually n times the variance)
        result.add(new DoubleWritable(myagg.sum / myagg.count));
-       result.add(new DoubleWritable(1.96*Math.sqrt(myagg.variance / (myagg.count*myagg.count))));
-       result.add(new DoubleWritable(95.0));
+       result.add(new DoubleWritable(2.575*Math.sqrt(myagg.variance / (myagg.count*myagg.count))));
+       result.add(new DoubleWritable(99.0));
        return result;
      }
    }
