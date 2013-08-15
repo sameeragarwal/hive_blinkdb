@@ -410,6 +410,7 @@ public final class FunctionRegistry {
     registerGenericUDAF("count", new GenericUDAFCount());
     registerGenericUDAF("avg", new GenericUDAFAverage());
 
+    // Approximate Aggregate functions
     registerGenericUDAF("approx_avg", new ApproxUDAFAverage());
     registerGenericUDAF("approx_count", new ApproxUDAFCount());
     registerGenericUDAF("approx_sum", new ApproxUDAFSum());
@@ -755,6 +756,8 @@ public final class FunctionRegistry {
    * @param isDistinct
    * @param isAllColumns
    * @return The UDAF evaluator
+   *
+   * TODO(sameerag): Add table statistics here
    */
   @SuppressWarnings("deprecation")
   public static GenericUDAFEvaluator getGenericUDAFEvaluator(String name,
