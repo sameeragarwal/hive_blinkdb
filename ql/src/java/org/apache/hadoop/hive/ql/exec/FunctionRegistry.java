@@ -126,6 +126,7 @@ import org.apache.hadoop.hive.ql.udf.UDFUpper;
 import org.apache.hadoop.hive.ql.udf.UDFWeekOfYear;
 import org.apache.hadoop.hive.ql.udf.UDFYear;
 import org.apache.hadoop.hive.ql.udf.approx.ApproxUDAFAverage;
+import org.apache.hadoop.hive.ql.udf.approx.ApproxUDAFCount;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFAverage;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFBridge;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCollectSet;
@@ -409,6 +410,7 @@ public final class FunctionRegistry {
     registerGenericUDAF("avg", new GenericUDAFAverage());
 
     registerGenericUDAF("approx_avg", new ApproxUDAFAverage());
+    registerGenericUDAF("approx_count", new ApproxUDAFCount());
 
     registerGenericUDAF("std", new GenericUDAFStd());
     registerGenericUDAF("stddev", new GenericUDAFStd());
