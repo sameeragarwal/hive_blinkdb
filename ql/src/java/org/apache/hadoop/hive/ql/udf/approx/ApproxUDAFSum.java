@@ -17,21 +17,30 @@
  */
 package org.apache.hadoop.hive.ql.udf.approx;
 
+import java.util.ArrayList;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hive.ql.exec.Description;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentTypeException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
 import org.apache.hadoop.hive.ql.parse.SemanticException;
+import org.apache.hadoop.hive.ql.udf.approx.ApproxUDAFAverage.ApproxUDAFAverageEvaluator.StdAgg;
 import org.apache.hadoop.hive.ql.udf.generic.AbstractGenericUDAFResolver;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
 import org.apache.hadoop.hive.serde2.io.DoubleWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.StructField;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.DoubleObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.LongObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.io.BooleanWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.util.StringUtils;
 
@@ -82,21 +91,99 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
    *
    */
   public static class ApproxUDAFSumDouble extends GenericUDAFEvaluator {
+    //private PrimitiveObjectInspector inputOI;
+    //private DoubleWritable result;
+
+    // For PARTIAL1 and COMPLETE
     private PrimitiveObjectInspector inputOI;
-    private DoubleWritable result;
+
+    // For PARTIAL2 and FINAL
+    private StructObjectInspector soi;
+    private StructField countField;
+    private StructField sumField;
+    private StructField varianceField;
+    private LongObjectInspector countFieldOI;
+    private DoubleObjectInspector sumFieldOI;
+    private DoubleObjectInspector varianceFieldOI;
+
+    // For PARTIAL1 and PARTIAL2
+    private Object[] partialResult;
+
+    // For FINAL and COMPLETE
+    ArrayList<DoubleWritable> result;
 
     @Override
     public ObjectInspector init(Mode m, ObjectInspector[] parameters) throws HiveException {
       assert (parameters.length == 1);
       super.init(m, parameters);
-      result = new DoubleWritable(0);
-      inputOI = (PrimitiveObjectInspector) parameters[0];
-      return PrimitiveObjectInspectorFactory.writableDoubleObjectInspector;
+
+      //result = new DoubleWritable(0);
+      //inputOI = (PrimitiveObjectInspector) parameters[0];
+      //return PrimitiveObjectInspectorFactory.writableDoubleObjectInspector;
+
+      // init input
+      if (mode == Mode.PARTIAL1 || mode == Mode.COMPLETE) {
+        inputOI = (PrimitiveObjectInspector) parameters[0];
+      } else {
+        soi = (StructObjectInspector) parameters[0];
+
+        countField = soi.getStructFieldRef("count");
+        sumField = soi.getStructFieldRef("sum");
+        varianceField = soi.getStructFieldRef("variance");
+
+        countFieldOI = (LongObjectInspector) countField
+            .getFieldObjectInspector();
+        sumFieldOI = (DoubleObjectInspector) sumField.getFieldObjectInspector();
+        varianceFieldOI = (DoubleObjectInspector) varianceField
+            .getFieldObjectInspector();
+      }
+
+      // init output
+      if (mode == Mode.PARTIAL1 || mode == Mode.PARTIAL2) {
+        // The output of a partial aggregation is a struct containing
+        // a long count and doubles sum and variance.
+
+        ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
+
+        foi.add(PrimitiveObjectInspectorFactory.writableBooleanObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+
+        ArrayList<String> fname = new ArrayList<String>();
+        fname.add("empty");
+        fname.add("count");
+        fname.add("sum");
+        fname.add("variance");
+
+        partialResult = new Object[4];
+        partialResult[0] = new BooleanWritable();
+        partialResult[1] = new LongWritable(0);
+        partialResult[2] = new DoubleWritable(0);
+        partialResult[3] = new DoubleWritable(0);
+
+        return ObjectInspectorFactory.getStandardStructObjectInspector(fname,
+            foi);
+
+      } else {
+        ArrayList<String> fname = new ArrayList<String>();
+        fname.add("approx_sum");
+        fname.add("error");
+        fname.add("confidence");
+        ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
+        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        result = new ArrayList<DoubleWritable>();
+        return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
+      }
+
     }
 
     /** class for storing double sum value. */
     static class SumDoubleAgg implements AggregationBuffer {
       boolean empty;
+      long count; // number of elements
       double sum;
       double variance; // sum[x-avg^2] (this is actually n times the variance)
     }
@@ -112,6 +199,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
     public void reset(AggregationBuffer agg) throws HiveException {
       SumDoubleAgg myagg = (SumDoubleAgg) agg;
       myagg.empty = true;
+      myagg.count = 0;
       myagg.sum = 0;
       myagg.variance = 0;
     }
@@ -121,8 +209,19 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
     @Override
     public void iterate(AggregationBuffer agg, Object[] parameters) throws HiveException {
       assert (parameters.length == 1);
-      try {
-        merge(agg, parameters[0]);
+      //try {
+      //  merge(agg, parameters[0]);
+      Object p = parameters[0];
+      if (p != null) {
+        StdAgg myagg = (StdAgg) agg;
+        try {
+          double v = PrimitiveObjectInspectorUtils.getDouble(p, inputOI);
+          myagg.count++;
+          myagg.sum += v;
+          if(myagg.count > 1) {
+            double t = myagg.count*v - myagg.sum;
+            myagg.variance += (t*t) / ((double)myagg.count*(myagg.count-1));
+          }
       } catch (NumberFormatException e) {
         if (!warned) {
           warned = true;
@@ -134,21 +233,60 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         }
       }
     }
+    }
 
     @Override
     public Object terminatePartial(AggregationBuffer agg) throws HiveException {
-      return terminate(agg);
+      //return terminate(agg);
+      SumDoubleAgg myagg = (SumDoubleAgg) agg;
+      ((BooleanWritable) partialResult[0]).set(myagg.empty);
+      ((LongWritable) partialResult[1]).set(myagg.count);
+      ((DoubleWritable) partialResult[2]).set(myagg.sum);
+      ((DoubleWritable) partialResult[3]).set(myagg.variance);
+      return partialResult;
     }
 
     @Override
     public void merge(AggregationBuffer agg, Object partial) throws HiveException {
+
+      /*
       if (partial != null) {
         SumDoubleAgg myagg = (SumDoubleAgg) agg;
         double v = PrimitiveObjectInspectorUtils.getDouble(partial, inputOI);
         myagg.empty = false;
         myagg.sum += v;
+      }
+      */
 
+      if (partial != null) {
+        SumDoubleAgg myagg = (SumDoubleAgg) agg;
 
+        Object partialCount = soi.getStructFieldData(partial, countField);
+        Object partialSum = soi.getStructFieldData(partial, sumField);
+        Object partialVariance = soi.getStructFieldData(partial, varianceField);
+
+        long n = myagg.count;
+        long m = countFieldOI.get(partialCount);
+
+        if (n == 0) {
+          // Just copy the information since there is nothing so far
+          myagg.variance = varianceFieldOI.get(partialVariance);
+          myagg.count = countFieldOI.get(partialCount);
+          myagg.sum = sumFieldOI.get(partialSum);
+        }
+
+        if (m != 0 && n != 0) {
+          // Merge the two partials
+
+          double a = myagg.sum;
+          double b = sumFieldOI.get(partialSum);
+
+          myagg.empty = false;
+          myagg.count += m;
+          myagg.sum += b;
+          double t = (m/(double)n)*a - b;
+          myagg.variance += varianceFieldOI.get(partialVariance) + ((n/(double)m)/((double)n+m)) * t * t;
+        }
       }
     }
 
@@ -158,8 +296,12 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
       if (myagg.empty) {
         return null;
       }
-      result.set(myagg.sum);
+
+      result.add(new DoubleWritable(myagg.sum));
+      result.add(new DoubleWritable(1.96*Math.sqrt(myagg.variance / (myagg.count*myagg.count))));
+      result.add(new DoubleWritable(95.0));
       return result;
+
     }
 
   }
@@ -169,22 +311,102 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
    *
    */
   public static class ApproxUDAFSumLong extends GenericUDAFEvaluator {
+    //private PrimitiveObjectInspector inputOI;
+    //private LongWritable result;
+
+    // For PARTIAL1 and COMPLETE
     private PrimitiveObjectInspector inputOI;
-    private LongWritable result;
+
+    // For PARTIAL2 and FINAL
+    private StructObjectInspector soi;
+    private StructField countField;
+    private StructField sumField;
+    private StructField varianceField;
+    private LongObjectInspector countFieldOI;
+    private LongObjectInspector sumFieldOI;
+    private DoubleObjectInspector varianceFieldOI;
+
+    // For PARTIAL1 and PARTIAL2
+    private Object[] partialResult;
+
+    // For FINAL and COMPLETE
+    ArrayList<LongWritable> result;
+
 
     @Override
     public ObjectInspector init(Mode m, ObjectInspector[] parameters) throws HiveException {
       assert (parameters.length == 1);
       super.init(m, parameters);
-      result = new LongWritable(0);
-      inputOI = (PrimitiveObjectInspector) parameters[0];
-      return PrimitiveObjectInspectorFactory.writableLongObjectInspector;
+
+      //result = new LongWritable(0);
+      //inputOI = (PrimitiveObjectInspector) parameters[0];
+      //return PrimitiveObjectInspectorFactory.writableLongObjectInspector;
+
+      // init input
+      if (mode == Mode.PARTIAL1 || mode == Mode.COMPLETE) {
+        inputOI = (PrimitiveObjectInspector) parameters[0];
+      } else {
+        soi = (StructObjectInspector) parameters[0];
+
+        countField = soi.getStructFieldRef("count");
+        sumField = soi.getStructFieldRef("sum");
+        varianceField = soi.getStructFieldRef("variance");
+
+        countFieldOI = (LongObjectInspector) countField
+            .getFieldObjectInspector();
+        sumFieldOI = (LongObjectInspector) sumField.getFieldObjectInspector();
+        varianceFieldOI = (DoubleObjectInspector) varianceField
+            .getFieldObjectInspector();
+      }
+
+      // init output
+      if (mode == Mode.PARTIAL1 || mode == Mode.PARTIAL2) {
+        // The output of a partial aggregation is a struct containing
+        // a long count and doubles sum and variance.
+
+        ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
+
+        foi.add(PrimitiveObjectInspectorFactory.writableBooleanObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+
+        ArrayList<String> fname = new ArrayList<String>();
+        fname.add("empty");
+        fname.add("count");
+        fname.add("sum");
+        fname.add("variance");
+
+        partialResult = new Object[4];
+        partialResult[0] = new BooleanWritable();
+        partialResult[1] = new LongWritable(0);
+        partialResult[2] = new LongWritable(0);
+        partialResult[3] = new DoubleWritable(0);
+
+        return ObjectInspectorFactory.getStandardStructObjectInspector(fname,
+            foi);
+
+      } else {
+        ArrayList<String> fname = new ArrayList<String>();
+        fname.add("approx_sum");
+        fname.add("error");
+        fname.add("confidence");
+        ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
+        foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
+        result = new ArrayList<LongWritable>();
+        return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
+      }
+
     }
 
     /** class for storing double sum value. */
     static class SumLongAgg implements AggregationBuffer {
       boolean empty;
+      long count; // number of elements
       long sum;
+      double variance; // sum[x-avg^2] (this is actually n times the variance)
     }
 
     @Override
@@ -198,7 +420,9 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
     public void reset(AggregationBuffer agg) throws HiveException {
       SumLongAgg myagg = (SumLongAgg) agg;
       myagg.empty = true;
+      myagg.count = 0;
       myagg.sum = 0;
+      myagg.variance = 0;
     }
 
     private boolean warned = false;
@@ -206,8 +430,19 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
     @Override
     public void iterate(AggregationBuffer agg, Object[] parameters) throws HiveException {
       assert (parameters.length == 1);
-      try {
-        merge(agg, parameters[0]);
+      //try {
+        //merge(agg, parameters[0]);
+      Object p = parameters[0];
+      if (p != null) {
+        SumLongAgg myagg = (SumLongAgg) agg;
+        try {
+          long v = PrimitiveObjectInspectorUtils.getLong(p, inputOI);
+          myagg.count++;
+          myagg.sum += v;
+          if(myagg.count > 1) {
+            double t = myagg.count*v - myagg.sum;
+            myagg.variance += (t*t) / ((double)myagg.count*(myagg.count-1));
+          }
       } catch (NumberFormatException e) {
         if (!warned) {
           warned = true;
@@ -216,18 +451,61 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         }
       }
     }
+    }
 
     @Override
     public Object terminatePartial(AggregationBuffer agg) throws HiveException {
-      return terminate(agg);
+      //return terminate(agg);
+
+      SumLongAgg myagg = (SumLongAgg) agg;
+      ((BooleanWritable) partialResult[0]).set(myagg.empty);
+      ((LongWritable) partialResult[1]).set(myagg.count);
+      ((LongWritable) partialResult[2]).set(myagg.sum);
+      ((DoubleWritable) partialResult[3]).set(myagg.variance);
+      return partialResult;
+
     }
 
     @Override
     public void merge(AggregationBuffer agg, Object partial) throws HiveException {
+
+      /*
       if (partial != null) {
         SumLongAgg myagg = (SumLongAgg) agg;
         myagg.sum += PrimitiveObjectInspectorUtils.getLong(partial, inputOI);
         myagg.empty = false;
+      }
+      */
+
+      if (partial != null) {
+        SumLongAgg myagg = (SumLongAgg) agg;
+
+        Object partialCount = soi.getStructFieldData(partial, countField);
+        Object partialSum = soi.getStructFieldData(partial, sumField);
+        Object partialVariance = soi.getStructFieldData(partial, varianceField);
+
+        long n = myagg.count;
+        long m = countFieldOI.get(partialCount);
+
+        if (n == 0) {
+          // Just copy the information since there is nothing so far
+          myagg.variance = varianceFieldOI.get(partialVariance);
+          myagg.count = countFieldOI.get(partialCount);
+          myagg.sum = sumFieldOI.get(partialSum);
+        }
+
+        if (m != 0 && n != 0) {
+          // Merge the two partials
+
+          long a = myagg.sum;
+          long b = sumFieldOI.get(partialSum);
+
+          myagg.empty = false;
+          myagg.count += m;
+          myagg.sum += b;
+          double t = (m/(double)n)*a - b;
+          myagg.variance += varianceFieldOI.get(partialVariance) + ((n/(double)m)/((double)n+m)) * t * t;
+        }
       }
     }
 
@@ -237,7 +515,13 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
       if (myagg.empty) {
         return null;
       }
-      result.set(myagg.sum);
+
+      //result.set(myagg.sum);
+      //return result;
+
+      result.add(new LongWritable(myagg.sum));
+      result.add(new LongWritable((long)(1.96*Math.sqrt(myagg.variance / (myagg.count*myagg.count)))));
+      result.add(new LongWritable(95));
       return result;
     }
 

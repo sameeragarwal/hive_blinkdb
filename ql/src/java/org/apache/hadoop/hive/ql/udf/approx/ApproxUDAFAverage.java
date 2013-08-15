@@ -240,7 +240,7 @@ public class ApproxUDAFAverage extends AbstractGenericUDAFResolver {
 
        if (n == 0) {
          // Just copy the information since there is nothing so far
-         myagg.variance = sumFieldOI.get(partialVariance);
+         myagg.variance = varianceFieldOI.get(partialVariance);
          myagg.count = countFieldOI.get(partialCount);
          myagg.sum = sumFieldOI.get(partialSum);
        }
@@ -254,7 +254,7 @@ public class ApproxUDAFAverage extends AbstractGenericUDAFResolver {
          myagg.count += m;
          myagg.sum += b;
          double t = (m/(double)n)*a - b;
-         myagg.variance += sumFieldOI.get(partialVariance) + ((n/(double)m)/((double)n+m)) * t * t;
+         myagg.variance += varianceFieldOI.get(partialVariance) + ((n/(double)m)/((double)n+m)) * t * t;
        }
      }
    }
