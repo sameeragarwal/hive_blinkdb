@@ -50,8 +50,8 @@ import org.apache.hadoop.io.LongWritable;
  * Note: Doesn't work with DISTINCT
  */
 @Description(name = "approx_count",
-    value = "_FUNC_() - Returns the total number of retrieved rows, including "
-        + "rows containing NULL values.\n"
+value = "_FUNC_() - Returns the total number of retrieved rows, including "
+    + "rows containing NULL values.\n"
 
         + "_FUNC_(expr) - Returns the number of rows for which the supplied "
         + "expression is non-NULL.\n")
@@ -70,27 +70,12 @@ public class ApproxUDAFCount implements GenericUDAFResolver2 {
   public GenericUDAFEvaluator getEvaluator(GenericUDAFParameterInfo paramInfo)
       throws SemanticException {
 
-    // Adding 2 new parameters. Table Size for error correction (rows) and
-    // Sampling Ratio for scaling (s)
+    // Adding 2 new parameters:
+    // (1) Table Size for error correction (totalRows)
+    // (2) Sampling Ratio for scaling (samplingRatio)
     TypeInfo[] parameters = paramInfo.getParameters();
 
     assert !paramInfo.isDistinct() : "DISTINCT not supported with APPROX COUNT";
-
-    /*
-     * if (parameters.length == 2) {
-     * if (!paramInfo.isAllColumns()) {
-     * throw new UDFArgumentException("Argument expected");
-     * }
-     * assert !paramInfo.isDistinct() : "DISTINCT not supported with *";
-     * }
-     *
-     * else {
-     * //if (parameters.length > 1 && !paramInfo.isDistinct()) {
-     * // throw new UDFArgumentException("DISTINCT keyword must be specified");
-     * //}
-     * assert !paramInfo.isAllColumns() : "* not supported in expression list";
-     * }
-     */
 
     return new ApproxUDAFCountEvaluator().setCountAllColumns(
         paramInfo.isAllColumns());
@@ -104,8 +89,6 @@ public class ApproxUDAFCount implements GenericUDAFResolver2 {
   public static class ApproxUDAFCountEvaluator extends GenericUDAFEvaluator {
     private boolean countAllColumns = false;
 
-    // private LongObjectInspector partialCountAggOI;
-    // private LongWritable result;
     private PrimitiveObjectInspector totalRowsOI;
     private PrimitiveObjectInspector samplingRatioOI;
 
@@ -120,7 +103,6 @@ public class ApproxUDAFCount implements GenericUDAFResolver2 {
     private LongObjectInspector countFieldOI;
     private LongObjectInspector totalRowsFieldOI;
     private DoubleObjectInspector samplingRatioFieldOI;
-
 
     // For PARTIAL1 and PARTIAL2
     private Object[] partialResult;
@@ -138,8 +120,6 @@ public class ApproxUDAFCount implements GenericUDAFResolver2 {
       // result = new LongWritable(0);
       // return PrimitiveObjectInspectorFactory.writableLongObjectInspector;
 
-      LOG.info("Total Parameter Length: " + parameters.length);
-
       if (parameters.length == 2) {
         totalRowsOI = (PrimitiveObjectInspector) parameters[0];
         samplingRatioOI = (PrimitiveObjectInspector) parameters[1];
@@ -150,6 +130,7 @@ public class ApproxUDAFCount implements GenericUDAFResolver2 {
 
       // init input
       if (mode == Mode.PARTIAL1 || mode == Mode.COMPLETE) {
+        // sameerag: approx_count doesn't need to read input
         // inputOI = (PrimitiveObjectInspector) parameters[0];
       } else {
 
@@ -169,8 +150,6 @@ public class ApproxUDAFCount implements GenericUDAFResolver2 {
 
       // init output
       if (mode == Mode.PARTIAL1 || mode == Mode.PARTIAL2) {
-        // The output of a partial aggregation is a struct containing
-        // a long count and doubles sum and variance.
 
         ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
 
@@ -203,7 +182,6 @@ public class ApproxUDAFCount implements GenericUDAFResolver2 {
         result = new ArrayList<LongWritable>();
         return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
       }
-
 
     }
 
@@ -255,8 +233,6 @@ public class ApproxUDAFCount implements GenericUDAFResolver2 {
         }
       }
 
-      // ((CountAgg) agg).totalRows++;
-
       if (countAllColumns) {
         // assert parameters.length == 0;
         ((CountAgg) agg).value++;
@@ -305,6 +281,8 @@ public class ApproxUDAFCount implements GenericUDAFResolver2 {
     public Object terminate(AggregationBuffer agg) throws HiveException {
 
       CountAgg myagg = (CountAgg) agg;
+
+      long approx_count = (long) (myagg.value / myagg.samplingRatio);
       double probability = ((double) myagg.value) / ((double) myagg.totalRows);
 
       LOG.info("Value: " + myagg.value);
@@ -312,12 +290,10 @@ public class ApproxUDAFCount implements GenericUDAFResolver2 {
       LOG.info("Probability: " + probability);
       LOG.info("Sampling Ratio: " + myagg.samplingRatio);
 
-      result.add(new LongWritable(myagg.value));
-      result.add(new LongWritable((long) Math.ceil(1.96 * Math
+      result.add(new LongWritable(approx_count));
+      result.add(new LongWritable((long) Math.ceil(2.575 * (1 / myagg.samplingRatio) * Math
           .sqrt(myagg.value * (1 - probability)))));
-      result.add(new LongWritable((long) (100 * myagg.samplingRatio)));
-      // result.set(((CountAgg) agg).value);
-
+      result.add(new LongWritable(99));
       return result;
 
     }
