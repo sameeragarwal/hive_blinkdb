@@ -115,11 +115,6 @@ public class ApproxUDAFCount implements GenericUDAFResolver2 {
         throws HiveException {
       super.init(m, parameters);
 
-      // partialCountAggOI =
-      // PrimitiveObjectInspectorFactory.writableLongObjectInspector;
-      // result = new LongWritable(0);
-      // return PrimitiveObjectInspectorFactory.writableLongObjectInspector;
-
       if (parameters.length == 2) {
         totalRowsOI = (PrimitiveObjectInspector) parameters[0];
         samplingRatioOI = (PrimitiveObjectInspector) parameters[1];
@@ -290,17 +285,20 @@ public class ApproxUDAFCount implements GenericUDAFResolver2 {
       LOG.info("Probability: " + probability);
       LOG.info("Sampling Ratio: " + myagg.samplingRatio);
 
-      result.add(new LongWritable(approx_count));
-      result.add(new LongWritable((long) Math.ceil(2.575 * (1 / myagg.samplingRatio) * Math
+      ArrayList<LongWritable> bin = new ArrayList<LongWritable>(3);
+      bin.add(new LongWritable(approx_count));
+      bin.add(new LongWritable((long) Math.ceil(2.575 * (1 / myagg.samplingRatio) * Math
           .sqrt(myagg.value * (1 - probability)))));
-      result.add(new LongWritable(99));
+      bin.add(new LongWritable(99));
+
+      result = bin;
       return result;
 
     }
 
     @Override
     public Object terminatePartial(AggregationBuffer agg) throws HiveException {
-      // return terminate(agg);
+
       CountAgg myagg = (CountAgg) agg;
       ((LongWritable) partialResult[0]).set(myagg.value);
       ((LongWritable) partialResult[1]).set(myagg.totalRows);

@@ -87,192 +87,197 @@ public class ApproxUDAFAverage extends AbstractGenericUDAFResolver {
    * ApproxUDAFAverageEvaluator.
    *
    */
-   public static class ApproxUDAFAverageEvaluator extends GenericUDAFEvaluator {
+  public static class ApproxUDAFAverageEvaluator extends GenericUDAFEvaluator {
 
-   // For PARTIAL1 and COMPLETE
-   private PrimitiveObjectInspector inputOI;
+    // For PARTIAL1 and COMPLETE
+    private PrimitiveObjectInspector inputOI;
 
-   // For PARTIAL2 and FINAL
-   private StructObjectInspector soi;
-   private StructField countField;
-   private StructField sumField;
-   private StructField varianceField;
-   private LongObjectInspector countFieldOI;
-   private DoubleObjectInspector sumFieldOI;
-   private DoubleObjectInspector varianceFieldOI;
+    // For PARTIAL2 and FINAL
+    private StructObjectInspector soi;
+    private StructField countField;
+    private StructField sumField;
+    private StructField varianceField;
+    private LongObjectInspector countFieldOI;
+    private DoubleObjectInspector sumFieldOI;
+    private DoubleObjectInspector varianceFieldOI;
 
-   // For PARTIAL1 and PARTIAL2
-   private Object[] partialResult;
+    // For PARTIAL1 and PARTIAL2
+    private Object[] partialResult;
 
-   // For FINAL and COMPLETE
-   ArrayList<DoubleWritable> result;
+    // For FINAL and COMPLETE
+    ArrayList<DoubleWritable> result;
 
-   @Override
-   public ObjectInspector init(Mode m, ObjectInspector[] parameters) throws HiveException {
-     assert (parameters.length == 1);
-     super.init(m, parameters);
+    @Override
+    public ObjectInspector init(Mode m, ObjectInspector[] parameters) throws HiveException {
+      assert (parameters.length == 1);
+      super.init(m, parameters);
 
-     // init input
-     if (mode == Mode.PARTIAL1 || mode == Mode.COMPLETE) {
-       inputOI = (PrimitiveObjectInspector) parameters[0];
-     } else {
-       soi = (StructObjectInspector) parameters[0];
+      // init input
+      if (mode == Mode.PARTIAL1 || mode == Mode.COMPLETE) {
+        inputOI = (PrimitiveObjectInspector) parameters[0];
+      } else {
+        soi = (StructObjectInspector) parameters[0];
 
-       countField = soi.getStructFieldRef("count");
-       sumField = soi.getStructFieldRef("sum");
-       varianceField = soi.getStructFieldRef("variance");
+        countField = soi.getStructFieldRef("count");
+        sumField = soi.getStructFieldRef("sum");
+        varianceField = soi.getStructFieldRef("variance");
 
-       countFieldOI = (LongObjectInspector) countField
-           .getFieldObjectInspector();
-       sumFieldOI = (DoubleObjectInspector) sumField.getFieldObjectInspector();
-       varianceFieldOI = (DoubleObjectInspector) varianceField
-           .getFieldObjectInspector();
-     }
+        countFieldOI = (LongObjectInspector) countField
+            .getFieldObjectInspector();
+        sumFieldOI = (DoubleObjectInspector) sumField.getFieldObjectInspector();
+        varianceFieldOI = (DoubleObjectInspector) varianceField
+            .getFieldObjectInspector();
+      }
 
-     // init output
-     if (mode == Mode.PARTIAL1 || mode == Mode.PARTIAL2) {
-       // The output of a partial aggregation is a struct containing
-       // a long count and doubles sum and variance.
+      // init output
+      if (mode == Mode.PARTIAL1 || mode == Mode.PARTIAL2) {
+        // The output of a partial aggregation is a struct containing
+        // a long count and doubles sum and variance.
 
-       ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
+        ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
 
-       foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
-       foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-       foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
 
-       ArrayList<String> fname = new ArrayList<String>();
-       fname.add("count");
-       fname.add("sum");
-       fname.add("variance");
+        ArrayList<String> fname = new ArrayList<String>();
+        fname.add("count");
+        fname.add("sum");
+        fname.add("variance");
 
-       partialResult = new Object[3];
-       partialResult[0] = new LongWritable(0);
-       partialResult[1] = new DoubleWritable(0);
-       partialResult[2] = new DoubleWritable(0);
+        partialResult = new Object[3];
+        partialResult[0] = new LongWritable(0);
+        partialResult[1] = new DoubleWritable(0);
+        partialResult[2] = new DoubleWritable(0);
 
-       return ObjectInspectorFactory.getStandardStructObjectInspector(fname,
-           foi);
+        return ObjectInspectorFactory.getStandardStructObjectInspector(fname,
+            foi);
 
-     } else {
-       ArrayList<String> fname = new ArrayList<String>();
-       fname.add("approx_avg");
-       fname.add("error");
-       fname.add("confidence");
-       ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
-       foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-       foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-       foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-       result = new ArrayList<DoubleWritable>();
-       return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
-     }
-   }
+      } else {
+        ArrayList<String> fname = new ArrayList<String>();
+        fname.add("approx_avg");
+        fname.add("error");
+        fname.add("confidence");
+        ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
+        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        result = new ArrayList<DoubleWritable>(3);
+        return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
+      }
+    }
 
-   static class StdAgg implements AggregationBuffer {
-     long count; // number of elements
-     double sum; // sum of elements
-     double variance; // sum[x-avg^2] (this is actually n times the variance)
-   };
+    static class StdAgg implements AggregationBuffer {
+      long count; // number of elements
+      double sum; // sum of elements
+      double variance; // sum[x-avg^2] (this is actually n times the variance)
+    };
 
-   @Override
-   public AggregationBuffer getNewAggregationBuffer() throws HiveException {
-     StdAgg result = new StdAgg();
-     reset(result);
-     return result;
-   }
+    @Override
+    public AggregationBuffer getNewAggregationBuffer() throws HiveException {
+      StdAgg result = new StdAgg();
+      reset(result);
+      return result;
+    }
 
-   @Override
-   public void reset(AggregationBuffer agg) throws HiveException {
-     StdAgg myagg = (StdAgg) agg;
-     myagg.count = 0;
-     myagg.sum = 0;
-     myagg.variance = 0;
-   }
+    @Override
+    public void reset(AggregationBuffer agg) throws HiveException {
+      StdAgg myagg = (StdAgg) agg;
+      myagg.count = 0;
+      myagg.sum = 0;
+      myagg.variance = 0;
+    }
 
-   private boolean warned = false;
+    private boolean warned = false;
 
-   @Override
-   public void iterate(AggregationBuffer agg, Object[] parameters)
-       throws HiveException {
-     assert (parameters.length == 1);
-     Object p = parameters[0];
-     if (p != null) {
-       StdAgg myagg = (StdAgg) agg;
-       try {
-         double v = PrimitiveObjectInspectorUtils.getDouble(p, inputOI);
-         myagg.count++;
-         myagg.sum += v;
-         if(myagg.count > 1) {
-           double t = myagg.count*v - myagg.sum;
-           myagg.variance += (t*t) / ((double)myagg.count*(myagg.count-1));
-         }
-       } catch (NumberFormatException e) {
-         if (!warned) {
-           warned = true;
-           LOG.warn(getClass().getSimpleName() + " "
-               + StringUtils.stringifyException(e));
-           LOG.warn(getClass().getSimpleName()
-               + " ignoring similar exceptions.");
-         }
-       }
-     }
-   }
+    @Override
+    public void iterate(AggregationBuffer agg, Object[] parameters)
+        throws HiveException {
+      assert (parameters.length == 1);
+      Object p = parameters[0];
+      if (p != null) {
+        StdAgg myagg = (StdAgg) agg;
+        try {
+          double v = PrimitiveObjectInspectorUtils.getDouble(p, inputOI);
+          myagg.count++;
+          myagg.sum += v;
+          if (myagg.count > 1) {
+            double t = myagg.count * v - myagg.sum;
+            myagg.variance += (t * t) / ((double) myagg.count * (myagg.count - 1));
+          }
+        } catch (NumberFormatException e) {
+          if (!warned) {
+            warned = true;
+            LOG.warn(getClass().getSimpleName() + " "
+                + StringUtils.stringifyException(e));
+            LOG.warn(getClass().getSimpleName()
+                + " ignoring similar exceptions.");
+          }
+        }
+      }
+    }
 
-   @Override
-   public Object terminatePartial(AggregationBuffer agg) throws HiveException {
-     StdAgg myagg = (StdAgg) agg;
-     ((LongWritable) partialResult[0]).set(myagg.count);
-     ((DoubleWritable) partialResult[1]).set(myagg.sum);
-     ((DoubleWritable) partialResult[2]).set(myagg.variance);
-     return partialResult;
-   }
+    @Override
+    public Object terminatePartial(AggregationBuffer agg) throws HiveException {
+      StdAgg myagg = (StdAgg) agg;
+      ((LongWritable) partialResult[0]).set(myagg.count);
+      ((DoubleWritable) partialResult[1]).set(myagg.sum);
+      ((DoubleWritable) partialResult[2]).set(myagg.variance);
+      return partialResult;
+    }
 
-   @Override
-   public void merge(AggregationBuffer agg, Object partial) throws HiveException {
-     if (partial != null) {
-       StdAgg myagg = (StdAgg) agg;
+    @Override
+    public void merge(AggregationBuffer agg, Object partial) throws HiveException {
+      if (partial != null) {
+        StdAgg myagg = (StdAgg) agg;
 
-       Object partialCount = soi.getStructFieldData(partial, countField);
-       Object partialSum = soi.getStructFieldData(partial, sumField);
-       Object partialVariance = soi.getStructFieldData(partial, varianceField);
+        Object partialCount = soi.getStructFieldData(partial, countField);
+        Object partialSum = soi.getStructFieldData(partial, sumField);
+        Object partialVariance = soi.getStructFieldData(partial, varianceField);
 
-       long n = myagg.count;
-       long m = countFieldOI.get(partialCount);
+        long n = myagg.count;
+        long m = countFieldOI.get(partialCount);
 
-       if (n == 0) {
-         // Just copy the information since there is nothing so far
-         myagg.variance = varianceFieldOI.get(partialVariance);
-         myagg.count = countFieldOI.get(partialCount);
-         myagg.sum = sumFieldOI.get(partialSum);
-       }
+        if (n == 0) {
+          // Just copy the information since there is nothing so far
+          myagg.variance = varianceFieldOI.get(partialVariance);
+          myagg.count = countFieldOI.get(partialCount);
+          myagg.sum = sumFieldOI.get(partialSum);
+        }
 
-       if (m != 0 && n != 0) {
-         // Merge the two partials
+        if (m != 0 && n != 0) {
+          // Merge the two partials
 
-         double a = myagg.sum;
-         double b = sumFieldOI.get(partialSum);
+          double a = myagg.sum;
+          double b = sumFieldOI.get(partialSum);
 
-         myagg.count += m;
-         myagg.sum += b;
-         double t = (m/(double)n)*a - b;
-         myagg.variance += varianceFieldOI.get(partialVariance) + ((n/(double)m)/((double)n+m)) * t * t;
-       }
-     }
-   }
+          myagg.count += m;
+          myagg.sum += b;
+          double t = (m / (double) n) * a - b;
+          myagg.variance += varianceFieldOI.get(partialVariance)
+              + ((n / (double) m) / ((double) n + m)) * t * t;
+        }
+      }
+    }
 
-   @Override
-   public Object terminate(AggregationBuffer agg) throws HiveException {
-     StdAgg myagg = (StdAgg) agg;
+    @Override
+    public Object terminate(AggregationBuffer agg) throws HiveException {
+      StdAgg myagg = (StdAgg) agg;
 
-     if (myagg.count == 0) { // SQL standard - return null for zero elements
-       return null;
-     } else {
-       // NOTE: myagg.variance = sum[x-avg^2] (this is actually n times the variance)
-       result.add(new DoubleWritable(myagg.sum / myagg.count));
-       result.add(new DoubleWritable(2.575*Math.sqrt(myagg.variance / (myagg.count*myagg.count))));
-       result.add(new DoubleWritable(99.0));
-       return result;
-     }
-   }
- }
+      if (myagg.count == 0) { // SQL standard - return null for zero elements
+        return null;
+      } else {
+        // NOTE: myagg.variance = sum[x-avg^2] (this is actually n times the variance)
+        ArrayList<DoubleWritable> bin = new ArrayList<DoubleWritable>(3);
+        bin.add(new DoubleWritable(myagg.sum / myagg.count));
+        bin.add(new DoubleWritable(2.575 * Math.sqrt(myagg.variance / (myagg.count * myagg.count))));
+        bin.add(new DoubleWritable(99.0));
+
+        result = bin;
+        return result;
+
+      }
+    }
+  }
 
 }
