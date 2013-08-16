@@ -737,7 +737,7 @@ public class SemanticAnalyzer extends BaseSemanticAnalyzer {
         // (sameerag): Binomial I.I.D. Sampling
       case HiveParser.TOK_SAMPLE_WITH:
         double probability = Double.parseDouble(((ASTNode) ast.getChild(0)).getToken().getText());
-        console.printInfo("Sameer: Sample With Operator Invoked with probability = " + probability);
+        console.printInfo("Sample With Operator Invoked with probability = " + probability);
         qbp.setSampleExprForClause(ctx_1.dest, ast);
         break;
 
