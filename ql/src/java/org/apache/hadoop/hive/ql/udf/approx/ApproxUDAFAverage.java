@@ -40,6 +40,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectIn
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.StringUtils;
 
 /**
@@ -105,7 +106,8 @@ public class ApproxUDAFAverage extends AbstractGenericUDAFResolver {
     private Object[] partialResult;
 
     // For FINAL and COMPLETE
-    ArrayList<DoubleWritable> result;
+    //ArrayList<DoubleWritable> result;
+    Text result;
 
     @Override
     public ObjectInspector init(Mode m, ObjectInspector[] parameters) throws HiveException {
@@ -154,16 +156,18 @@ public class ApproxUDAFAverage extends AbstractGenericUDAFResolver {
             foi);
 
       } else {
-        ArrayList<String> fname = new ArrayList<String>();
-        fname.add("approx_avg");
-        fname.add("error");
-        fname.add("confidence");
-        ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
-        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-        result = new ArrayList<DoubleWritable>(3);
-        return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
+        //ArrayList<String> fname = new ArrayList<String>();
+        //fname.add("approx_avg");
+        //fname.add("error");
+        //fname.add("confidence");
+        //ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
+        //foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        //foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        //foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        //result = new ArrayList<DoubleWritable>(3);
+        result = new Text();
+        //return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
+        return PrimitiveObjectInspectorFactory.writableStringObjectInspector;
       }
     }
 
@@ -266,14 +270,22 @@ public class ApproxUDAFAverage extends AbstractGenericUDAFResolver {
 
       if (myagg.count == 0) { // SQL standard - return null for zero elements
         return null;
+        //might want to sanitize output to DoubleWritables
       } else {
         // NOTE: myagg.variance = sum[x-avg^2] (this is actually n times the variance)
-        ArrayList<DoubleWritable> bin = new ArrayList<DoubleWritable>(3);
-        bin.add(new DoubleWritable(myagg.sum / myagg.count));
-        bin.add(new DoubleWritable(2.575 * Math.sqrt(myagg.variance / (myagg.count * myagg.count))));
-        bin.add(new DoubleWritable(99.0));
+        StringBuilder sb = new StringBuilder();
+        sb.append(myagg.sum / myagg.count);
+        sb.append(" +/- ");
+        sb.append((2.575 * Math.sqrt(myagg.variance / (myagg.count * myagg.count))));
+        sb.append(" (99% Confidence) ");
 
-        result = bin;
+        //ArrayList<DoubleWritable> result = new ArrayList<DoubleWritable>(3);
+        //result.add(new DoubleWritable(myagg.sum / myagg.count));
+        //result.add(new DoubleWritable(2.575 * Math.sqrt(myagg.variance / (myagg.count * myagg.count))));
+        //result.add(new DoubleWritable(99.0));
+
+        result.set(sb.toString());
+        //result = bin;
         return result;
 
       }
