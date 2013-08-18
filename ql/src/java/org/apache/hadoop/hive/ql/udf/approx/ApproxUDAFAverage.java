@@ -156,16 +156,6 @@ public class ApproxUDAFAverage extends AbstractGenericUDAFResolver {
             foi);
 
       } else {
-        // ArrayList<String> fname = new ArrayList<String>();
-        // fname.add("approx_avg");
-        // fname.add("error");
-        // fname.add("confidence");
-        // ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
-        // foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-        // foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-        // foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-        // result = new ArrayList<DoubleWritable>(3);
-        // return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
         result = new Text();
         return PrimitiveObjectInspectorFactory.writableStringObjectInspector;
       }
@@ -279,12 +269,6 @@ public class ApproxUDAFAverage extends AbstractGenericUDAFResolver {
         sb.append(" +/- ");
         sb.append((2.575 * Math.sqrt(myagg.variance / (myagg.count * myagg.count))));
         sb.append(" (99% Confidence) ");
-
-        // ArrayList<DoubleWritable> result = new ArrayList<DoubleWritable>(3);
-        // result.add(new DoubleWritable(myagg.sum / myagg.count));
-        // result.add(new DoubleWritable(2.575 * Math.sqrt(myagg.variance / (myagg.count *
-        // myagg.count))));
-        // result.add(new DoubleWritable(99.0));
 
         result.set(sb.toString());
         return result;

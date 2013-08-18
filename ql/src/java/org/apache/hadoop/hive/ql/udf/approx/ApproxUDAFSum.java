@@ -191,17 +191,6 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
             foi);
 
       } else {
-        // ArrayList<String> fname = new ArrayList<String>();
-        // fname.add("approx_sum");
-        // fname.add("error");
-        // fname.add("confidence");
-        // ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
-        // foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-        // foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-        // foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-        // result = new ArrayList<DoubleWritable>(3);
-        // return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
-
         result = new Text();
         return PrimitiveObjectInspectorFactory.writableStringObjectInspector;
       }
@@ -353,7 +342,8 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
       sb.append(approx_sum);
       sb.append(" +/- ");
       sb.append(Math.ceil((2.575 * (1.0 * myagg.totalRows / myagg.sampleRows) * Math
-          .sqrt((myagg.variance / myagg.count) + ((1 - probability) * mean * mean)))));
+          .sqrt(probability
+              * ((myagg.variance) + ((1 - probability) * myagg.totalRows * mean * mean))))));
       sb.append(" (99% Confidence) ");
 
       result.set(sb.toString());
@@ -463,17 +453,6 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
             foi);
 
       } else {
-        // ArrayList<String> fname = new ArrayList<String>();
-        // fname.add("approx_sum");
-        // fname.add("error");
-        // fname.add("confidence");
-        // ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
-        // foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
-        // foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
-        // foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
-        // result = new ArrayList<LongWritable>(3);
-        // return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
-
         result = new Text();
         return PrimitiveObjectInspectorFactory.writableStringObjectInspector;
       }
@@ -624,7 +603,8 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
       sb.append(approx_sum);
       sb.append(" +/- ");
       sb.append(Math.ceil((2.575 * (1.0 * myagg.totalRows / myagg.sampleRows) * Math
-          .sqrt((myagg.variance / myagg.count) + ((1 - probability) * mean * mean)))));
+          .sqrt(probability
+              * ((myagg.variance) + ((1 - probability) * myagg.totalRows * mean * mean))))));
       sb.append(" (99% Confidence) ");
 
       result.set(sb.toString());

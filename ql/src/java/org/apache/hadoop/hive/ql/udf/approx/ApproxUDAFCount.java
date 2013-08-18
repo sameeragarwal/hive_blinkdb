@@ -49,8 +49,8 @@ import org.apache.hadoop.io.Text;
  * Note: Doesn't work with DISTINCT
  */
 @Description(name = "approx_count",
-value = "_FUNC_() - Returns the total number of retrieved rows, including "
-    + "rows containing NULL values.\n"
+    value = "_FUNC_() - Returns the total number of retrieved rows, including "
+        + "rows containing NULL values.\n"
 
         + "_FUNC_(expr) - Returns the number of rows for which the supplied "
         + "expression is non-NULL.\n")
@@ -165,17 +165,6 @@ public class ApproxUDAFCount implements GenericUDAFResolver2 {
             foi);
 
       } else {
-        // ArrayList<String> fname = new ArrayList<String>();
-        // fname.add("approx_count");
-        // fname.add("error");
-        // fname.add("confidence");
-        // ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
-        // foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
-        // foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
-        // foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
-        // result = new ArrayList<LongWritable>(3);
-        // return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
-
         result = new Text();
         return PrimitiveObjectInspectorFactory.writableStringObjectInspector;
       }
