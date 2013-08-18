@@ -1,7 +1,7 @@
 Apache BlinkDB Hive 0.1.0
 =========================
 
-This is a fork of Apache Hive that is required by BlinkDB 0.1.0
+This is a fork of Apache Hive that is required by BlinkDB alpha-0.1.0
 
 The Apache Hive (TM) data warehouse software facilitates querying and
 managing large datasets residing in distributed storage. Built on top
