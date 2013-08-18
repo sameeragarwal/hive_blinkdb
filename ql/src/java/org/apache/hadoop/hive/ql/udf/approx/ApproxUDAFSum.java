@@ -41,6 +41,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.io.BooleanWritable;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.util.StringUtils;
 
 /**
@@ -98,7 +99,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
     // For PARTIAL1 and COMPLETE
     private PrimitiveObjectInspector inputOI;
     private PrimitiveObjectInspector totalRowsOI;
-    private PrimitiveObjectInspector samplingRatioOI;
+    private PrimitiveObjectInspector sampleRowsOI;
 
     // For PARTIAL2 and FINAL
     private StructObjectInspector soi;
@@ -106,18 +107,18 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
     private StructField sumField;
     private StructField varianceField;
     private StructField totalRowsField;
-    private StructField samplingRatioField;
+    private StructField sampleRowsField;
     private LongObjectInspector countFieldOI;
     private DoubleObjectInspector sumFieldOI;
     private DoubleObjectInspector varianceFieldOI;
     private LongObjectInspector totalRowsFieldOI;
-    private DoubleObjectInspector samplingRatioFieldOI;
+    private LongObjectInspector sampleRowsFieldOI;
 
     // For PARTIAL1 and PARTIAL2
     private Object[] partialResult;
 
     // For FINAL and COMPLETE
-    ArrayList<DoubleWritable> result;
+    Text result;
 
     @Override
     public ObjectInspector init(Mode m, ObjectInspector[] parameters) throws HiveException {
@@ -125,8 +126,8 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
       super.init(m, parameters);
 
       if (parameters.length == 3) {
-        totalRowsOI = (PrimitiveObjectInspector) parameters[1];
-        samplingRatioOI = (PrimitiveObjectInspector) parameters[2];
+        totalRowsOI = (PrimitiveObjectInspector) parameters[2];
+        sampleRowsOI = (PrimitiveObjectInspector) parameters[1];
       }
 
       // result = new DoubleWritable(0);
@@ -143,7 +144,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         sumField = soi.getStructFieldRef("sum");
         varianceField = soi.getStructFieldRef("variance");
         totalRowsField = soi.getStructFieldRef("totalRows");
-        samplingRatioField = soi.getStructFieldRef("samplingRatio");
+        sampleRowsField = soi.getStructFieldRef("sampleRows");
 
         countFieldOI = (LongObjectInspector) countField
             .getFieldObjectInspector();
@@ -152,7 +153,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
             .getFieldObjectInspector();
         totalRowsFieldOI = (LongObjectInspector) totalRowsField
             .getFieldObjectInspector();
-        samplingRatioFieldOI = (DoubleObjectInspector) samplingRatioField
+        sampleRowsFieldOI = (LongObjectInspector) sampleRowsField
             .getFieldObjectInspector();
       }
 
@@ -168,7 +169,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
         foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
         foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
-        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
 
         ArrayList<String> fname = new ArrayList<String>();
         fname.add("empty");
@@ -176,7 +177,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         fname.add("sum");
         fname.add("variance");
         fname.add("totalRows");
-        fname.add("samplingRatio");
+        fname.add("sampleRows");
 
         partialResult = new Object[6];
         partialResult[0] = new BooleanWritable();
@@ -184,22 +185,25 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         partialResult[2] = new DoubleWritable(0);
         partialResult[3] = new DoubleWritable(0);
         partialResult[4] = new LongWritable(0);
-        partialResult[5] = new DoubleWritable(0);
+        partialResult[5] = new LongWritable(0);
 
         return ObjectInspectorFactory.getStandardStructObjectInspector(fname,
             foi);
 
       } else {
-        ArrayList<String> fname = new ArrayList<String>();
-        fname.add("approx_sum");
-        fname.add("error");
-        fname.add("confidence");
-        ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
-        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
-        result = new ArrayList<DoubleWritable>(3);
-        return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
+        // ArrayList<String> fname = new ArrayList<String>();
+        // fname.add("approx_sum");
+        // fname.add("error");
+        // fname.add("confidence");
+        // ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
+        // foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        // foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        // foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        // result = new ArrayList<DoubleWritable>(3);
+        // return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
+
+        result = new Text();
+        return PrimitiveObjectInspectorFactory.writableStringObjectInspector;
       }
 
     }
@@ -211,7 +215,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
       double sum;
       double variance; // sum[x-avg^2] (this is actually n times the variance)
       long totalRows;
-      double samplingRatio;
+      long sampleRows;
     }
 
     @Override
@@ -229,7 +233,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
       myagg.sum = 0;
       myagg.variance = 0;
       myagg.totalRows = 0;
-      myagg.samplingRatio = 0;
+      myagg.sampleRows = 0;
     }
 
     boolean warned = false;
@@ -239,10 +243,10 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
       assert (parameters.length == 3);
 
       if (parameters.length == 3) {
-        ((SumDoubleAgg) agg).totalRows = PrimitiveObjectInspectorUtils.getLong(parameters[1],
+        ((SumDoubleAgg) agg).totalRows = PrimitiveObjectInspectorUtils.getLong(parameters[2],
             totalRowsOI);
-        ((SumDoubleAgg) agg).samplingRatio = PrimitiveObjectInspectorUtils.getDouble(parameters[2],
-            samplingRatioOI);
+        ((SumDoubleAgg) agg).sampleRows = PrimitiveObjectInspectorUtils.getLong(parameters[1],
+            sampleRowsOI);
       }
 
       Object p = parameters[0];
@@ -278,7 +282,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
       ((DoubleWritable) partialResult[2]).set(myagg.sum);
       ((DoubleWritable) partialResult[3]).set(myagg.variance);
       ((LongWritable) partialResult[4]).set(myagg.totalRows);
-      ((DoubleWritable) partialResult[5]).set(myagg.samplingRatio);
+      ((LongWritable) partialResult[5]).set(myagg.sampleRows);
       return partialResult;
     }
 
@@ -294,15 +298,15 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         Object partialSum = soi.getStructFieldData(partial, sumField);
         Object partialVariance = soi.getStructFieldData(partial, varianceField);
         Object partialTotalRows = soi.getStructFieldData(partial, totalRowsField);
-        Object partialSamplingRatio = soi.getStructFieldData(partial, samplingRatioField);
+        Object partialSampleRows = soi.getStructFieldData(partial, sampleRowsField);
 
 
         long n = myagg.count;
         long m = countFieldOI.get(partialCount);
         long q = totalRowsFieldOI.get(partialTotalRows);
-        double r = samplingRatioFieldOI.get(partialSamplingRatio);
+        long r = sampleRowsFieldOI.get(partialSampleRows);
         myagg.totalRows = q;
-        myagg.samplingRatio = r;
+        myagg.sampleRows = r;
 
 
         if (n == 0) {
@@ -336,17 +340,23 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         return null;
       }
 
-      double approx_sum = (double) (myagg.sum / myagg.samplingRatio);
+      double approx_sum = ((double) myagg.sum * myagg.totalRows) / myagg.sampleRows;
       double probability = ((double) myagg.count) / ((double) myagg.totalRows);
       double mean = myagg.sum / myagg.count;
 
-      ArrayList<DoubleWritable> bin = new ArrayList<DoubleWritable>(3);
-      bin.add(new DoubleWritable(approx_sum));
-      bin.add(new DoubleWritable((2.575 * (1 / myagg.samplingRatio) * Math
-          .sqrt((myagg.variance / myagg.count) + ((1 - probability) * mean * mean)))));
-      bin.add(new DoubleWritable(99.0));
+      LOG.info("Sum: " + approx_sum);
+      LOG.info("TotalRows: " + myagg.totalRows);
+      LOG.info("Probability: " + probability);
+      LOG.info("Sampling Ratio: " + ((double) myagg.sampleRows) / myagg.totalRows);
 
-      result = bin;
+      StringBuilder sb = new StringBuilder();
+      sb.append(approx_sum);
+      sb.append(" +/- ");
+      sb.append(Math.ceil((2.575 * (1.0 * myagg.totalRows / myagg.sampleRows) * Math
+          .sqrt((myagg.variance / myagg.count) + ((1 - probability) * mean * mean)))));
+      sb.append(" (99% Confidence) ");
+
+      result.set(sb.toString());
       return result;
 
     }
@@ -364,7 +374,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
     // For PARTIAL1 and COMPLETE
     private PrimitiveObjectInspector inputOI;
     private PrimitiveObjectInspector totalRowsOI;
-    private PrimitiveObjectInspector samplingRatioOI;
+    private PrimitiveObjectInspector sampleRowsOI;
 
     // For PARTIAL2 and FINAL
     private StructObjectInspector soi;
@@ -372,18 +382,18 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
     private StructField sumField;
     private StructField varianceField;
     private StructField totalRowsField;
-    private StructField samplingRatioField;
+    private StructField sampleRowsField;
     private LongObjectInspector countFieldOI;
     private LongObjectInspector sumFieldOI;
     private DoubleObjectInspector varianceFieldOI;
     private LongObjectInspector totalRowsFieldOI;
-    private DoubleObjectInspector samplingRatioFieldOI;
+    private LongObjectInspector sampleRowsFieldOI;
 
     // For PARTIAL1 and PARTIAL2
     private Object[] partialResult;
 
     // For FINAL and COMPLETE
-    ArrayList<LongWritable> result;
+    Text result;
 
 
     @Override
@@ -392,8 +402,8 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
       super.init(m, parameters);
 
       if (parameters.length == 3) {
-        totalRowsOI = (PrimitiveObjectInspector) parameters[1];
-        samplingRatioOI = (PrimitiveObjectInspector) parameters[2];
+        totalRowsOI = (PrimitiveObjectInspector) parameters[2];
+        sampleRowsOI = (PrimitiveObjectInspector) parameters[1];
       }
 
       // init input
@@ -406,7 +416,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         sumField = soi.getStructFieldRef("sum");
         varianceField = soi.getStructFieldRef("variance");
         totalRowsField = soi.getStructFieldRef("totalRows");
-        samplingRatioField = soi.getStructFieldRef("samplingRatio");
+        sampleRowsField = soi.getStructFieldRef("sampleRows");
 
         countFieldOI = (LongObjectInspector) countField
             .getFieldObjectInspector();
@@ -415,7 +425,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
             .getFieldObjectInspector();
         totalRowsFieldOI = (LongObjectInspector) totalRowsField
             .getFieldObjectInspector();
-        samplingRatioFieldOI = (DoubleObjectInspector) samplingRatioField
+        sampleRowsFieldOI = (LongObjectInspector) sampleRowsField
             .getFieldObjectInspector();
       }
 
@@ -431,7 +441,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
         foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
         foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
-        foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+        foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
 
         ArrayList<String> fname = new ArrayList<String>();
         fname.add("empty");
@@ -439,7 +449,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         fname.add("sum");
         fname.add("variance");
         fname.add("totalRows");
-        fname.add("samplingRatio");
+        fname.add("sampleRows");
 
         partialResult = new Object[6];
         partialResult[0] = new BooleanWritable();
@@ -447,22 +457,25 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         partialResult[2] = new LongWritable(0);
         partialResult[3] = new DoubleWritable(0);
         partialResult[4] = new LongWritable(0);
-        partialResult[5] = new DoubleWritable(0);
+        partialResult[5] = new LongWritable(0);
 
         return ObjectInspectorFactory.getStandardStructObjectInspector(fname,
             foi);
 
       } else {
-        ArrayList<String> fname = new ArrayList<String>();
-        fname.add("approx_sum");
-        fname.add("error");
-        fname.add("confidence");
-        ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
-        foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
-        foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
-        foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
-        result = new ArrayList<LongWritable>(3);
-        return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
+        // ArrayList<String> fname = new ArrayList<String>();
+        // fname.add("approx_sum");
+        // fname.add("error");
+        // fname.add("confidence");
+        // ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
+        // foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
+        // foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
+        // foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
+        // result = new ArrayList<LongWritable>(3);
+        // return ObjectInspectorFactory.getStandardStructObjectInspector(fname, foi);
+
+        result = new Text();
+        return PrimitiveObjectInspectorFactory.writableStringObjectInspector;
       }
 
     }
@@ -474,7 +487,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
       long sum;
       double variance; // sum[x-avg^2] (this is actually n times the variance)
       long totalRows;
-      double samplingRatio;
+      long sampleRows;
     }
 
     @Override
@@ -492,7 +505,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
       myagg.sum = 0;
       myagg.variance = 0;
       myagg.totalRows = 0;
-      myagg.samplingRatio = 0;
+      myagg.sampleRows = 0;
     }
 
     private boolean warned = false;
@@ -506,10 +519,10 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         SumLongAgg myagg = (SumLongAgg) agg;
 
         if (parameters.length == 3) {
-          myagg.totalRows = PrimitiveObjectInspectorUtils.getLong(parameters[1],
+          myagg.totalRows = PrimitiveObjectInspectorUtils.getLong(parameters[2],
               totalRowsOI);
-          myagg.samplingRatio = PrimitiveObjectInspectorUtils.getDouble(parameters[2],
-              samplingRatioOI);
+          myagg.sampleRows = PrimitiveObjectInspectorUtils.getLong(parameters[1],
+              sampleRowsOI);
         }
 
         try {
@@ -539,7 +552,7 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
       ((LongWritable) partialResult[2]).set(myagg.sum);
       ((DoubleWritable) partialResult[3]).set(myagg.variance);
       ((LongWritable) partialResult[4]).set(myagg.totalRows);
-      ((DoubleWritable) partialResult[5]).set(myagg.samplingRatio);
+      ((LongWritable) partialResult[5]).set(myagg.sampleRows);
 
       return partialResult;
 
@@ -556,15 +569,15 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         Object partialSum = soi.getStructFieldData(partial, sumField);
         Object partialVariance = soi.getStructFieldData(partial, varianceField);
         Object partialTotalRows = soi.getStructFieldData(partial, totalRowsField);
-        Object partialSamplingRatio = soi.getStructFieldData(partial, samplingRatioField);
+        Object partialSampleRows = soi.getStructFieldData(partial, sampleRowsField);
 
         long n = myagg.count;
         long m = countFieldOI.get(partialCount);
         long q = totalRowsFieldOI.get(partialTotalRows);
-        double r = samplingRatioFieldOI.get(partialSamplingRatio);
+        long r = sampleRowsFieldOI.get(partialSampleRows);
 
         myagg.totalRows = q;
-        myagg.samplingRatio = r;
+        myagg.sampleRows = r;
 
         if (n == 0) {
           // Just copy the information since there is nothing so far
@@ -598,22 +611,23 @@ public class ApproxUDAFSum extends AbstractGenericUDAFResolver {
         return null;
       }
 
-      long approx_sum = (long) (myagg.sum / myagg.samplingRatio);
+      double approx_sum = ((double) myagg.sum * myagg.totalRows) / myagg.sampleRows;
       double probability = ((double) myagg.count) / ((double) myagg.totalRows);
-      double mean = myagg.sum / myagg.count;
+      double mean = ((double) myagg.sum) / myagg.count;
 
       LOG.info("Sum: " + approx_sum);
       LOG.info("TotalRows: " + myagg.totalRows);
       LOG.info("Probability: " + probability);
-      LOG.info("Sampling Ratio: " + myagg.samplingRatio);
+      LOG.info("Sampling Ratio: " + ((double) myagg.sampleRows) / myagg.totalRows);
 
-      ArrayList<LongWritable> bin = new ArrayList<LongWritable>(3);
-      bin.add(new LongWritable(approx_sum));
-      bin.add(new LongWritable((long) Math.ceil((2.575 * (1 / myagg.samplingRatio) * Math
-          .sqrt((myagg.variance / myagg.count) + ((1 - probability) * mean * mean))))));
-      bin.add(new LongWritable(99));
+      StringBuilder sb = new StringBuilder();
+      sb.append(approx_sum);
+      sb.append(" +/- ");
+      sb.append(Math.ceil((2.575 * (1.0 * myagg.totalRows / myagg.sampleRows) * Math
+          .sqrt((myagg.variance / myagg.count) + ((1 - probability) * mean * mean)))));
+      sb.append(" (99% Confidence) ");
 
-      result = bin;
+      result.set(sb.toString());
       return result;
 
     }
